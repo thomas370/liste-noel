@@ -255,6 +255,8 @@ a { color: inherit; }
 .login { max-width: 440px; margin: 0 auto; padding: 14vh 20px 72px; }
 .login-title { font: 400 36px/1.05 var(--display); margin-bottom: 8px; }
 .login-sub { color: var(--ink-soft); font-size: 15px; margin-bottom: 20px; }
+.login-help { font-size: 14px; color: var(--ink-soft); margin: 0 0 14px; }
+.login-help a { color: var(--berry); font-weight: 600; }
 .nav-btn { background: none; border: 0; cursor: pointer; font-family: var(--body); }
 @media (prefers-reduced-motion: reduce) { #toast, .btn, .form-panel { transition: none; } }
 </style>
@@ -267,8 +269,10 @@ a { color: inherit; }
 (function () {
   "use strict";
 
-  var API = "api.php";
-  var PASS_KEY = "liste-noel-mdp";
+  // Dépôt GitHub où est enregistrée la liste
+  var OWNER = "thomas370", REPO = "liste-noel", FILE = "liste.json";
+  var GH_URL = "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/" + FILE;
+  var TOKEN_KEY = "liste-noel-github";
 
   var PRIORITIES = {
     1: { label: "Très envie", stars: "★★★", cls: "p1" },
@@ -348,13 +352,24 @@ a { color: inherit; }
     };
   }
 
-  function readPass() { try { return localStorage.getItem(PASS_KEY) || ""; } catch (e) { return ""; } }
-  function storePass(p) { try { if (p) localStorage.setItem(PASS_KEY, p); else localStorage.removeItem(PASS_KEY); } catch (e) {} }
+  function readToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+  function storeToken(t) { try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function b64encode(s) {
+    var bytes = new TextEncoder().encode(s), bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function b64decode(b) {
+    var bin = atob(String(b).replace(/\s/g, "")), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
 
   var state = normalize({});
   var loaded = false, loadError = false;
-  var password = readPass();
-  var mode = password ? "checking" : "viewer"; // viewer | checking | editor
+  var token = readToken();
+  var sha = null;
+  var mode = token ? "checking" : "viewer"; // viewer | checking | editor
   var editingId = null, confirmDeleteId = null, busy = false;
   var lastView = null, renders = 0;
   var loginError = "";
@@ -365,26 +380,31 @@ a { color: inherit; }
   function findItem(id) { for (var i = 0; i < state.items.length; i++) if (state.items[i].id === id) return state.items[i]; return null; }
   function shareUrl() { return location.origin + location.pathname; }
 
-  // Échanges avec api.php
-  function api(body) {
-    var opts = body
-      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" }
-      : { cache: "no-store" };
-    return fetch(API, opts).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!r.ok) {
-          var err = new Error(j.error || "http_" + r.status);
-          err.code = j.error || "http_" + r.status;
-          err.data = j.data;
-          throw err;
-        }
-        return j;
-      });
-    });
+  // Lecture publique (famille) : le fichier liste.json publié par GitHub Pages
+  function publicLoad() {
+    return fetch(FILE + "?v=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("http_" + r.status); return r.json(); })
+      .then(function (d) { state = normalize(d); loaded = true; loadError = false; },
+        function () { loaded = true; loadError = true; });
   }
-  function load() {
-    return api(null).then(function (d) { state = normalize(d); loaded = true; loadError = false; },
-      function () { loaded = true; loadError = true; });
+  // Lecture et écriture par l’API GitHub (personne qui fait la liste)
+  function gh(method, body, key) {
+    var headers = { "Authorization": "Bearer " + (key || token), "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (body) headers["Content-Type"] = "application/json";
+    return fetch(GH_URL, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, cache: "no-store" })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) { var err = new Error(j.message || "http_" + r.status); err.status = r.status; throw err; }
+          return j;
+        });
+      }, function () { var err = new Error("reseau"); err.status = 0; throw err; });
+  }
+  function ghLoad(key) {
+    return gh("GET", null, key).then(function (j) {
+      sha = j.sha;
+      state = normalize(JSON.parse(b64decode(j.content)));
+      loaded = true; loadError = false;
+    });
   }
 
   var toastTimer = null;
@@ -406,32 +426,32 @@ a { color: inherit; }
 
   function save(next, okMsg) {
     if (busy) return;
-    if (!loaded || loadError) {
+    if (!loaded || loadError || !sha) {
       toast("La liste n’a pas pu être chargée : je n’enregistre rien pour ne rien effacer. Recharge la page.", "error");
       return;
     }
+    next.updatedAt = Date.now();
+    var json = JSON.stringify(next, null, 2) + "\n";
     setBusy(true);
     toast("Enregistrement…");
-    api({ password: password, base: state.updatedAt, data: next }).then(function (d) {
-      state = normalize(d.data || next);
+    gh("PUT", { message: okMsg || "Mise à jour de la liste", content: b64encode(json), sha: sha }).then(function (j) {
+      sha = j.content && j.content.sha;
+      state = normalize(next);
       editingId = null; confirmDeleteId = null;
       setBusy(false);
       render(false);
-      toast(okMsg || "Enregistré");
+      toast((okMsg || "Enregistré") + ". Ta famille le verra d’ici une minute.");
     }).catch(function (e) {
       setBusy(false);
-      var c = (e && e.code) || "";
-      if (c === "conflit") {
-        if (e.data) state = normalize(e.data);
-        editingId = null; confirmDeleteId = null;
-        render(false);
-        toast("Ta liste a été modifiée depuis un autre appareil. Je l’ai rechargée : refais ta dernière modification.", "error");
-      } else if (c === "mot_de_passe") {
-        logout("Ton mot de passe a changé. Reconnecte-toi.");
-      } else if (c === "mot_de_passe_par_defaut") {
-        toast("Choisis d’abord ton mot de passe dans le fichier config.php.", "error");
-      } else if (c === "ecriture") {
-        toast("Le serveur n’a pas pu enregistrer. Vérifie que liste.json est dans le même dossier que api.php.", "error");
+      var s = e && e.status;
+      if (s === 409 || s === 422) {
+        ghLoad().then(function () { editingId = null; confirmDeleteId = null; render(false); }, function () {}).then(function () {
+          toast("Ta liste a été modifiée ailleurs entre-temps. Je l’ai rechargée : refais ta dernière modification.", "error");
+        });
+      } else if (s === 401) {
+        logout("Ta clé GitHub n’est plus valide. Colle une nouvelle clé.");
+      } else if (s === 403 || s === 404) {
+        toast("Ta clé ne peut pas modifier le dépôt. Vérifie qu’elle a la permission « Contents » en lecture et écriture.", "error");
       } else {
         toast("Impossible d’enregistrer pour le moment. Vérifie ta connexion et réessaie.", "error");
       }
@@ -440,27 +460,27 @@ a { color: inherit; }
 
   function onLogin(e) {
     e.preventDefault();
-    var p = $("#l-pass").value;
-    if (!p) { loginError = "Entre ton mot de passe."; render(true); $("#l-pass").focus(); return; }
+    var k = $("#l-pass").value.trim();
+    if (!k) { loginError = "Colle ta clé d’accès GitHub."; render(true); $("#l-pass").focus(); return; }
     setBusy(true);
-    api({ password: p, check: true }).then(function () {
-      password = p; storePass(p); mode = "editor"; loginError = "";
+    ghLoad(k).then(function () {
+      token = k; storeToken(k); mode = "editor"; loginError = "";
       setBusy(false);
       if (location.hash !== "#ma-liste") location.hash = "ma-liste";
       render(true);
     }).catch(function (err) {
       setBusy(false);
-      var c = (err && err.code) || "";
-      loginError = c === "mot_de_passe" ? "Mot de passe incorrect."
-        : c === "mot_de_passe_par_defaut" ? "Choisis d’abord ton mot de passe dans le fichier config.php, puis renvoie ce fichier sur le serveur."
-        : "Connexion au serveur impossible. Réessaie dans un instant.";
+      var s = err && err.status;
+      loginError = s === 401 ? "Cette clé n’est pas valide ou a expiré."
+        : (s === 403 || s === 404) ? "Cette clé n’a pas accès au dépôt " + REPO + ". Vérifie le dépôt choisi quand tu crées la clé."
+        : "Connexion à GitHub impossible. Réessaie dans un instant.";
       render(true);
       var f = $("#l-pass"); if (f) f.focus();
     });
   }
 
   function logout(msg) {
-    password = ""; storePass("");
+    token = ""; storeToken(""); sha = null;
     mode = "viewer"; loginError = msg || "";
     editingId = null; confirmDeleteId = null;
     var target = msg ? "#ma-liste" : "#partage";
@@ -519,10 +539,11 @@ a { color: inherit; }
   function loginHtml() {
     return "<main class=\"login\"><section class=\"panel\" aria-labelledby=\"login-heading\">" +
       "<h1 class=\"login-title\" id=\"login-heading\">Modifier ma liste</h1>" +
-      "<p class=\"login-sub\">Entre le mot de passe choisi dans le fichier config.php.</p>" +
+      "<p class=\"login-sub\">Colle ta clé d’accès GitHub. Elle reste enregistrée seulement sur cet appareil.</p>" +
       "<form id=\"login-form\" novalidate>" +
-      "<div class=\"field\"><label for=\"l-pass\">Mot de passe</label>" +
-      "<input type=\"password\" id=\"l-pass\" autocomplete=\"current-password\"></div>" +
+      "<div class=\"field\"><label for=\"l-pass\">Clé d’accès GitHub</label>" +
+      "<input type=\"password\" id=\"l-pass\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"github_pat_…\"></div>" +
+      "<p class=\"login-help\">Pas encore de clé ? <a href=\"https://github.com/settings/personal-access-tokens/new\" target=\"_blank\" rel=\"noopener noreferrer\">Crée-la sur GitHub</a> : choisis seulement le dépôt " + REPO + " et la permission « Contents » en lecture et écriture.</p>" +
       "<p class=\"form-error\" role=\"alert\">" + esc(loginError) + "</p>" +
       "<div class=\"form-actions\"><button type=\"submit\" class=\"btn btn-berry\">Se connecter</button>" +
       "<a class=\"btn btn-quiet\" href=\"#partage\">Voir la liste</a></div>" +
@@ -588,6 +609,7 @@ a { color: inherit; }
       "<ol class=\"steps\">" +
       "<li>Envoie ce lien à ta famille. Ils verront ta liste sans pouvoir la modifier.</li>" +
       "<li>Pour revenir modifier ta liste, ouvre ce même lien suivi de <strong>#ma-liste</strong>.</li>" +
+      "<li>Après chaque modification, la page famille se met à jour en une minute environ.</li>" +
       "</ol>" +
       "</section>" +
 
@@ -833,13 +855,14 @@ a { color: inherit; }
   $("#app").addEventListener("click", onClick);
   window.addEventListener("hashchange", function () { render(true); });
 
-  var check = password
-    ? api({ password: password, check: true }).then(function () { mode = "editor"; }, function (e) {
+  var start = token
+    ? ghLoad().then(function () { mode = "editor"; }, function (e) {
         mode = "viewer";
-        if (e && (e.code === "mot_de_passe" || e.code === "mot_de_passe_par_defaut")) { password = ""; storePass(""); }
+        if (e && (e.status === 401 || e.status === 403 || e.status === 404)) { token = ""; storeToken(""); }
+        return publicLoad();
       })
-    : Promise.resolve();
-  Promise.all([load(), check]).then(function () { render(true); });
+    : publicLoad();
+  start.then(function () { render(true); });
 })();
 </script>
 </body>
