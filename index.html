@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ma liste de Noël</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Gloock&display=swap">
+<style id="app-style">
+:root {
+  /* Plan : nuit de sapin en fond, idées accrochées comme des étiquettes-cadeaux en papier ; airelle pour l'action, or pour les étoiles. */
+  --pine: #0f241b;
+  --paper: #f3f0e9;
+  --ink: #18221d;
+  --berry: #b3263d;
+  --gold: #d9a845;
+  --gold-deep: #94660f;
+  --frost: #b5c8bd;
+  --ink-soft: #56635c;
+  --rule: #dcd6c9;
+  --display: "Gloock", "Iowan Old Style", Georgia, serif;
+  --body: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background-color: var(--pine);
+  background-image: radial-gradient(1100px 560px at 50% -220px, #1f4a38 0%, rgba(15, 36, 27, 0) 72%);
+  background-repeat: no-repeat;
+  color: var(--paper);
+  font: 400 16px/1.5 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+#snow { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+#app { position: relative; z-index: 1; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* Boutons */
+.btn {
+  font: 600 15px/1 var(--body);
+  border-radius: 999px;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: background-color .15s, border-color .15s, color .15s, transform .1s;
+}
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .55; cursor: progress; }
+.btn-small { padding: 9px 14px; font-size: 14px; }
+.btn-berry { background: var(--berry); color: #fff; }
+.btn-berry:hover { background: #971d32; }
+.btn-outline { background: transparent; color: var(--ink); border-color: var(--ink); }
+.btn-outline:hover { background: var(--ink); color: var(--paper); }
+.btn-line { background: #fff; color: var(--ink); border-color: var(--rule); }
+.btn-line:hover { border-color: var(--ink); }
+.btn-danger { color: var(--berry); }
+.btn-quiet { background: transparent; color: var(--ink-soft); }
+.btn-quiet:hover { color: var(--ink); background: rgba(24, 34, 29, .06); }
+.btn-light { background: transparent; color: var(--paper); border-color: rgba(243, 240, 233, .35); }
+.btn-light:hover { border-color: var(--paper); }
+
+/* ---------- Vue famille ---------- */
+.share { max-width: 1120px; margin: 0 auto; padding: 28px 20px 72px; }
+.preview-bar {
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  padding: 8px 8px 8px 18px;
+  border: 1px solid rgba(243, 240, 233, .18);
+  border-radius: 999px;
+  color: var(--frost);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.hero { padding: 28px 0 0; max-width: 860px; }
+.countdown { display: flex; align-items: baseline; gap: 10px; color: var(--frost); font-size: 15px; margin-bottom: 18px; font-variant-numeric: tabular-nums; }
+.countdown b { font: 400 26px/1 var(--display); color: var(--gold); }
+.hero-title { font: 400 clamp(42px, 7.4vw, 88px)/.98 var(--display); letter-spacing: -.015em; }
+.hero-title .name { color: var(--gold); }
+.hero-message { margin-top: 22px; font-size: 19px; line-height: 1.5; max-width: 58ch; white-space: pre-line; }
+.hero-meta { margin-top: 16px; color: var(--frost); font-size: 14px; font-variant-numeric: tabular-nums; }
+.garland {
+  height: 14px;
+  margin-top: 44px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold) 0 3px, rgba(217, 168, 69, 0) 3.5px) 0 0 / 56px 14px repeat-x,
+    linear-gradient(rgba(181, 200, 189, .35), rgba(181, 200, 189, .35)) 0 50% / 100% 1px no-repeat;
+}
+.tags {
+  list-style: none; margin: 22px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 40px 28px;
+}
+.tag {
+  position: relative; display: flex; padding-top: 30px;
+  transform: rotate(var(--rot, 0deg)); transform-origin: 50% 0;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .3));
+}
+.tag:nth-child(3n+1) { --rot: -1.3deg; }
+.tag:nth-child(3n+2) { --rot: .9deg; }
+.tag:nth-child(3n) { --rot: -.4deg; }
+.tag::before { content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 50px; background: rgba(243, 240, 233, .55); z-index: 2; }
+.tag::after { content: ""; position: absolute; left: calc(50% - 4px); top: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); z-index: 2; }
+.tag-body {
+  position: relative; flex: 1;
+  background: var(--paper); color: var(--ink);
+  padding: 44px 22px 20px;
+  clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%, 0 24px);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.tag.p1 .tag-body { box-shadow: inset 0 5px 0 var(--berry); }
+.tag-hole { position: absolute; left: calc(50% - 7px); top: 14px; width: 14px; height: 14px; border-radius: 50%; background: var(--pine); box-shadow: 0 0 0 3px var(--gold); }
+.tag-prio, .row-prio { font: 700 12px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); display: flex; gap: 8px; align-items: center; }
+.tag-prio .stars, .row-prio .stars { color: var(--gold-deep); letter-spacing: .12em; }
+.p1 .tag-prio, .p1 .row-prio { color: var(--berry); }
+.tag-title { font: 400 26px/1.1 var(--display); }
+.tag-note { color: var(--ink-soft); font-size: 15px; white-space: pre-line; }
+.tag-foot {
+  margin-top: auto; padding-top: 14px; border-top: 1px dashed var(--rule);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.tag-price { font: 600 16px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.tag-price.none { font-weight: 400; color: var(--ink-soft); font-size: 14px; }
+.tag-link { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; text-decoration: none; color: var(--berry); font-weight: 700; font-size: 15px; }
+.tag-link:hover .tag-link-label { text-decoration: underline; text-underline-offset: 3px; }
+.tag-host { font-weight: 400; font-size: 12px; color: var(--ink-soft); }
+.tag-links { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.empty-share { margin-top: 32px; padding: 28px; border: 1px dashed rgba(243, 240, 233, .3); border-radius: 14px; max-width: 520px; color: var(--frost); }
+.empty-share-title { font: 400 26px/1.15 var(--display); color: var(--paper); margin-bottom: 8px; }
+.share-foot { margin-top: 64px; color: var(--frost); font-size: 14px; max-width: 62ch; display: flex; flex-direction: column; gap: 10px; }
+.owner-link { color: var(--frost); font-size: 13px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tag { transition: transform .5s cubic-bezier(.3, 1.6, .5, 1); animation: tag-drop .8s cubic-bezier(.2, 1.4, .4, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+  .tag:hover { transform: rotate(calc(var(--rot, 0deg) * -1.6)); }
+  .calm .tag { animation: none; }
+  @keyframes tag-drop { from { transform: translateY(-18px) rotate(var(--rot, 0deg)); } to { transform: rotate(var(--rot, 0deg)); } }
+}
+
+/* ---------- Vue édition ---------- */
+.editor { max-width: 1180px; margin: 0 auto; padding: 24px 20px 72px; }
+.ed-head {
+  display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between;
+  padding: 8px 0 22px; margin-bottom: 24px; border-bottom: 1px solid rgba(243, 240, 233, .14);
+}
+.ed-title { font: 400 clamp(34px, 4.6vw, 50px)/1 var(--display); }
+.ed-sub { margin-top: 10px; color: var(--frost); font-size: 15px; display: flex; gap: 10px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.chip-gold { font: 400 20px/1 var(--display); color: var(--gold); }
+.ed-nav { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, .22); border: 1px solid rgba(243, 240, 233, .12); }
+.nav-link { padding: 9px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 14px; color: var(--frost); }
+.nav-link:hover { color: var(--paper); }
+.nav-link.is-active { background: var(--paper); color: var(--ink); }
+.ed-grid { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.form-panel { grid-column: 1; grid-row: 1; }
+.share-panel { grid-column: 1; grid-row: 2; }
+.list-panel { grid-column: 2; grid-row: 1 / span 2; }
+@media (max-width: 860px) {
+  .ed-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-panel, .share-panel, .list-panel { grid-column: 1; grid-row: auto; }
+}
+.panel { background: var(--paper); color: var(--ink); border-radius: 14px; padding: 22px; color-scheme: light; }
+.panel h2 { font: 400 25px/1.1 var(--display); margin-bottom: 18px; }
+.form-panel { transition: box-shadow .2s; scroll-margin-top: 16px; }
+.form-panel.is-editing { box-shadow: 0 0 0 3px var(--gold); }
+.field { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; border: 0; padding: 0; min-width: 0; }
+.field label, .field legend { font-weight: 600; font-size: 14px; padding: 0; }
+.field legend { margin-bottom: 6px; }
+.req { font-weight: 400; color: var(--ink-soft); font-size: 12px; margin-left: 4px; }
+.panel input[type="text"], .panel textarea {
+  font: 400 16px/1.4 var(--body); color: var(--ink); background: #fff;
+  border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+.panel input[type="text"]::placeholder, .panel textarea::placeholder { color: #8b958f; }
+.panel input[type="text"]:focus, .panel textarea:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(217, 168, 69, .5); }
+.panel textarea { resize: vertical; min-height: 72px; }
+.input-suffix { position: relative; max-width: 180px; }
+.input-suffix input[type="text"] { padding-right: 34px; font-variant-numeric: tabular-nums; }
+.input-suffix span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 6px; border: 1px solid var(--rule); border-radius: 8px; background: #fff;
+  cursor: pointer; font-size: 13px; font-weight: 600; text-align: center;
+}
+.seg label .stars { color: var(--gold-deep); letter-spacing: .12em; }
+.seg label:hover { border-color: var(--ink); }
+.seg input:checked + label { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.seg input:checked + label .stars { color: var(--gold); }
+.seg input:focus-visible + label { outline: 2px solid var(--gold); outline-offset: 2px; }
+.form-error { color: var(--berry); font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+.form-error:empty { display: none; }
+.form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.list-head h2 { margin-bottom: 0; }
+.list-count { color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+.ed-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+.row {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; align-items: start;
+  padding: 16px 4px 16px 18px; border-top: 1px solid var(--rule);
+}
+.row::before { content: ""; position: absolute; left: 0; top: 16px; bottom: 16px; width: 4px; border-radius: 2px; background: var(--rule); }
+.row.p1::before { background: var(--berry); }
+.row.p2::before { background: var(--gold); }
+.row.p3::before { background: #b3bfb8; }
+.row.is-editing { background: linear-gradient(90deg, rgba(217, 168, 69, .18), rgba(217, 168, 69, 0) 80%); }
+.row-prio { margin-bottom: 7px; }
+.row-title { font: 400 21px/1.2 var(--display); overflow-wrap: anywhere; }
+.row-note { color: var(--ink-soft); font-size: 15px; margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere; }
+.row-meta { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.row-meta a { color: var(--berry); font-weight: 600; text-decoration: none; }
+.row-meta a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.row-meta .nolink { color: var(--ink-soft); }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.row-confirm {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center;
+  background: #f6e3e6; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600;
+}
+.row-confirm span { flex: 1 1 200px; overflow-wrap: anywhere; }
+.empty { padding: 28px 0 10px; border-top: 1px solid var(--rule); color: var(--ink-soft); max-width: 52ch; }
+@media (max-width: 520px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row-actions { justify-content: flex-start; }
+}
+
+.share-panel .divider { height: 1px; background: var(--rule); margin: 20px 0; }
+.copy-row { display: flex; gap: 8px; }
+.copy-row input[type="text"] { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-soft); }
+.steps { margin: 4px 0 0; padding-left: 20px; color: var(--ink-soft); font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 20px; z-index: 10;
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  background: var(--ink); color: var(--paper); border: 1px solid rgba(243, 240, 233, .2);
+  padding: 12px 18px; border-radius: 999px; font-size: 15px; font-weight: 500;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .35);
+  max-width: calc(100% - 32px); text-align: center;
+  transition: opacity .2s, transform .2s;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.error { background: var(--berry); color: #fff; }
+/* ---------- Connexion (version alwaysdata) ---------- */
+.panel input[type="password"] { font: 400 16px/1.4 var(--body); color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; width: 100%; }
+.panel input[type="password"]:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(217, 168, 69, .5); }
+.login { max-width: 440px; margin: 0 auto; padding: 14vh 20px 72px; }
+.login-title { font: 400 36px/1.05 var(--display); margin-bottom: 8px; }
+.login-sub { color: var(--ink-soft); font-size: 15px; margin-bottom: 20px; }
+.nav-btn { background: none; border: 0; cursor: pointer; font-family: var(--body); }
+@media (prefers-reduced-motion: reduce) { #toast, .btn, .form-panel { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="snow" aria-hidden="true"></canvas>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script id="app-script">
+(function () {
+  "use strict";
+
+  var API = "api.php";
+  var PASS_KEY = "liste-noel-mdp";
+
+  var PRIORITIES = {
+    1: { label: "Très envie", stars: "★★★", cls: "p1" },
+    2: { label: "Envie", stars: "★★", cls: "p2" },
+    3: { label: "Petite idée", stars: "★", cls: "p3" }
+  };
+
+  var $ = function (s) { return document.querySelector(s); };
+  var ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ESC[c]; }); }
+  var reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  function str(v, max) { return typeof v === "string" ? v.trim().slice(0, max) : ""; }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function safeUrl(v) {
+    if (typeof v !== "string") return null;
+    var t = v.trim();
+    if (!t) return null;
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = "https://" + t;
+    try {
+      var u = new URL(t);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      if (u.hostname.indexOf(".") < 0) return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+  function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } }
+
+  function parsePrice(v) {
+    var t = String(v || "").replace(/€|euros?|eur/gi, "").replace(/[\s  ]/g, "").replace(",", ".");
+    if (!t) return { ok: true, value: null };
+    var n = Number(t);
+    if (!isFinite(n) || n < 0 || n > 100000) return { ok: false };
+    return { ok: true, value: Math.round(n * 100) / 100 };
+  }
+  var price0 = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  var price2 = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function fmtPrice(n) { return (Math.round(n) === n ? price0 : price2).format(n); }
+  var dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" });
+
+  function daysToChristmas(now) {
+    var y = now.getFullYear();
+    var today = new Date(y, now.getMonth(), now.getDate());
+    var xmas = new Date(y, 11, 25);
+    if (today > xmas) xmas = new Date(y + 1, 11, 25);
+    return Math.round((xmas - today) / 86400000);
+  }
+  function countdown() {
+    var d = daysToChristmas(new Date());
+    if (d === 0) return { big: "Joyeux Noël !", rest: "" };
+    if (d === 1) return { big: "J-1", rest: "Noël, c’est demain" };
+    return { big: "J-" + d, rest: "avant Noël" };
+  }
+  function countLabel(n) { return n === 0 ? "Aucune idée pour l’instant" : n === 1 ? "1 idée" : n + " idées"; }
+
+  function normalize(s) {
+    s = s && typeof s === "object" ? s : {};
+    var items = Array.isArray(s.items) ? s.items : [];
+    return {
+      owner: str(s.owner, 40),
+      message: str(s.message, 280),
+      updatedAt: Number(s.updatedAt) || null,
+      items: items.filter(function (i) { return i && typeof i.title === "string" && i.title.trim(); }).map(function (i) {
+        return {
+          id: String(i.id || uid()),
+          title: str(i.title, 120),
+          link: safeUrl(i.link) || "",
+          alt: safeUrl(i.alt) || "",
+          price: typeof i.price === "number" && isFinite(i.price) && i.price >= 0 ? i.price : null,
+          priority: [1, 2, 3].indexOf(i.priority) >= 0 ? i.priority : 2,
+          note: str(i.note, 300),
+          createdAt: Number(i.createdAt) || 0
+        };
+      })
+    };
+  }
+
+  function readPass() { try { return localStorage.getItem(PASS_KEY) || ""; } catch (e) { return ""; } }
+  function storePass(p) { try { if (p) localStorage.setItem(PASS_KEY, p); else localStorage.removeItem(PASS_KEY); } catch (e) {} }
+
+  var state = normalize({});
+  var loaded = false, loadError = false;
+  var password = readPass();
+  var mode = password ? "checking" : "viewer"; // viewer | checking | editor
+  var editingId = null, confirmDeleteId = null, busy = false;
+  var lastView = null, renders = 0;
+  var loginError = "";
+
+  function sortedItems() {
+    return state.items.slice().sort(function (a, b) { return (a.priority - b.priority) || (a.createdAt - b.createdAt); });
+  }
+  function findItem(id) { for (var i = 0; i < state.items.length; i++) if (state.items[i].id === id) return state.items[i]; return null; }
+  function shareUrl() { return location.origin + location.pathname; }
+
+  // Échanges avec api.php
+  function api(body) {
+    var opts = body
+      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" }
+      : { cache: "no-store" };
+    return fetch(API, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) {
+          var err = new Error(j.error || "http_" + r.status);
+          err.code = j.error || "http_" + r.status;
+          err.data = j.data;
+          throw err;
+        }
+        return j;
+      });
+    });
+  }
+  function load() {
+    return api(null).then(function (d) { state = normalize(d); loaded = true; loadError = false; },
+      function () { loaded = true; loadError = true; });
+  }
+
+  var toastTimer = null;
+  function toast(msg, kind) {
+    var t = $("#toast");
+    if (!t) return;
+    var base = kind === "error" ? "error" : "";
+    t.textContent = msg;
+    t.className = "show " + base;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = base; }, kind === "error" ? 6500 : 2800);
+  }
+
+  function setBusy(b) {
+    busy = b;
+    var btns = document.querySelectorAll("#app button");
+    for (var i = 0; i < btns.length; i++) btns[i].disabled = b;
+  }
+
+  function save(next, okMsg) {
+    if (busy) return;
+    if (!loaded || loadError) {
+      toast("La liste n’a pas pu être chargée : je n’enregistre rien pour ne rien effacer. Recharge la page.", "error");
+      return;
+    }
+    setBusy(true);
+    toast("Enregistrement…");
+    api({ password: password, base: state.updatedAt, data: next }).then(function (d) {
+      state = normalize(d.data || next);
+      editingId = null; confirmDeleteId = null;
+      setBusy(false);
+      render(false);
+      toast(okMsg || "Enregistré");
+    }).catch(function (e) {
+      setBusy(false);
+      var c = (e && e.code) || "";
+      if (c === "conflit") {
+        if (e.data) state = normalize(e.data);
+        editingId = null; confirmDeleteId = null;
+        render(false);
+        toast("Ta liste a été modifiée depuis un autre appareil. Je l’ai rechargée : refais ta dernière modification.", "error");
+      } else if (c === "mot_de_passe") {
+        logout("Ton mot de passe a changé. Reconnecte-toi.");
+      } else if (c === "mot_de_passe_par_defaut") {
+        toast("Choisis d’abord ton mot de passe dans le fichier config.php.", "error");
+      } else if (c === "ecriture") {
+        toast("Le serveur n’a pas pu enregistrer. Vérifie que liste.json est dans le même dossier que api.php.", "error");
+      } else {
+        toast("Impossible d’enregistrer pour le moment. Vérifie ta connexion et réessaie.", "error");
+      }
+    });
+  }
+
+  function onLogin(e) {
+    e.preventDefault();
+    var p = $("#l-pass").value;
+    if (!p) { loginError = "Entre ton mot de passe."; render(true); $("#l-pass").focus(); return; }
+    setBusy(true);
+    api({ password: p, check: true }).then(function () {
+      password = p; storePass(p); mode = "editor"; loginError = "";
+      setBusy(false);
+      if (location.hash !== "#ma-liste") location.hash = "ma-liste";
+      render(true);
+    }).catch(function (err) {
+      setBusy(false);
+      var c = (err && err.code) || "";
+      loginError = c === "mot_de_passe" ? "Mot de passe incorrect."
+        : c === "mot_de_passe_par_defaut" ? "Choisis d’abord ton mot de passe dans le fichier config.php, puis renvoie ce fichier sur le serveur."
+        : "Connexion au serveur impossible. Réessaie dans un instant.";
+      render(true);
+      var f = $("#l-pass"); if (f) f.focus();
+    });
+  }
+
+  function logout(msg) {
+    password = ""; storePass("");
+    mode = "viewer"; loginError = msg || "";
+    editingId = null; confirmDeleteId = null;
+    var target = msg ? "#ma-liste" : "#partage";
+    if (location.hash !== target) location.hash = target.slice(1);
+    render(true);
+  }
+
+  /* ---------- Vue famille ---------- */
+  function tagLink(url, label) {
+    return "<a class=\"tag-link\" href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener noreferrer\"><span class=\"tag-link-label\">" + label + "</span><span class=\"tag-host\">" + esc(hostOf(url)) + "</span></a>";
+  }
+  function tagHtml(it, i) {
+    var p = PRIORITIES[it.priority];
+    var price = it.price != null ? "<span class=\"tag-price\">≈ " + fmtPrice(it.price) + "</span>" : "<span class=\"tag-price none\">Prix libre</span>";
+    var links = [];
+    if (it.link) links.push(tagLink(it.link, "Voir le cadeau ↗"));
+    if (it.alt) links.push(tagLink(it.alt, it.link ? "Ou celui-ci ↗" : "Voir le cadeau ↗"));
+    var link = links.length ? "<div class=\"tag-links\">" + links.join("") + "</div>" : "";
+    return "<li class=\"tag " + p.cls + "\" style=\"--i:" + i + "\"><div class=\"tag-body\">" +
+      "<span class=\"tag-hole\" aria-hidden=\"true\"></span>" +
+      "<p class=\"tag-prio\"><span class=\"stars\" aria-hidden=\"true\">" + p.stars + "</span>" + p.label + "</p>" +
+      "<h2 class=\"tag-title\">" + esc(it.title) + "</h2>" +
+      (it.note ? "<p class=\"tag-note\">" + esc(it.note) + "</p>" : "") +
+      "<div class=\"tag-foot\">" + price + link + "</div>" +
+      "</div></li>";
+  }
+
+  function shareHtml(calm) {
+    var items = sortedItems();
+    var cd = countdown();
+    var bar = mode === "editor"
+      ? "<div class=\"preview-bar\"><span>Aperçu : c’est ce que voit ta famille.</span><a class=\"btn btn-light btn-small\" href=\"#ma-liste\">Modifier ma liste</a></div>"
+      : "";
+    var title = state.owner ? "La liste de Noël de <span class=\"name\">" + esc(state.owner) + "</span>" : "Ma liste de Noël";
+    var updated = state.updatedAt ? " · mise à jour le " + dateFmt.format(new Date(state.updatedAt)) : "";
+    var meta = !loaded ? "Chargement de la liste…" : loadError ? "" : countLabel(items.length) + updated;
+    var list;
+    if (!loaded) list = "";
+    else if (loadError) list = "<div class=\"empty-share\"><p class=\"empty-share-title\">Liste indisponible</p><p>La liste n’a pas pu être chargée. Recharge la page dans un instant.</p></div>";
+    else if (items.length) list = "<ul class=\"tags\">" + items.map(tagHtml).join("") + "</ul>";
+    else list = "<div class=\"empty-share\"><p class=\"empty-share-title\">La liste arrive bientôt</p><p>Aucune idée n’a encore été ajoutée. Repassez un peu plus tard.</p></div>";
+    return "<main class=\"share" + (calm ? " calm" : "") + "\">" + bar +
+      "<header class=\"hero\">" +
+      "<p class=\"countdown\"><b>" + cd.big + "</b>" + (cd.rest ? "<span>" + cd.rest + "</span>" : "") + "</p>" +
+      "<h1 class=\"hero-title\">" + title + "</h1>" +
+      (state.message ? "<p class=\"hero-message\">" + esc(state.message) + "</p>" : "") +
+      (meta ? "<p class=\"hero-meta\">" + meta + "</p>" : "") +
+      "</header>" +
+      "<div class=\"garland\" aria-hidden=\"true\"></div>" + list +
+      "<footer class=\"share-foot\"><p>Les liens s’ouvrent dans un nouvel onglet. Mettez-vous d’accord entre vous pour ne pas offrir deux fois le même cadeau.</p>" +
+      (mode !== "editor" ? "<a class=\"owner-link\" href=\"#ma-liste\">Espace de la personne qui fait la liste</a>" : "") +
+      "</footer></main>";
+  }
+
+  /* ---------- Connexion ---------- */
+  function loginHtml() {
+    return "<main class=\"login\"><section class=\"panel\" aria-labelledby=\"login-heading\">" +
+      "<h1 class=\"login-title\" id=\"login-heading\">Modifier ma liste</h1>" +
+      "<p class=\"login-sub\">Entre le mot de passe choisi dans le fichier config.php.</p>" +
+      "<form id=\"login-form\" novalidate>" +
+      "<div class=\"field\"><label for=\"l-pass\">Mot de passe</label>" +
+      "<input type=\"password\" id=\"l-pass\" autocomplete=\"current-password\"></div>" +
+      "<p class=\"form-error\" role=\"alert\">" + esc(loginError) + "</p>" +
+      "<div class=\"form-actions\"><button type=\"submit\" class=\"btn btn-berry\">Se connecter</button>" +
+      "<a class=\"btn btn-quiet\" href=\"#partage\">Voir la liste</a></div>" +
+      "</form></section></main>";
+  }
+
+  /* ---------- Vue édition ---------- */
+  function editorHtml() {
+    var cd = countdown();
+    var url = shareUrl();
+    return "<div class=\"editor\">" +
+      "<header class=\"ed-head\"><div>" +
+      "<h1 class=\"ed-title\">Ma liste de Noël</h1>" +
+      "<p class=\"ed-sub\"><b class=\"chip-gold\">" + cd.big + "</b>" + (cd.rest ? "<span>" + cd.rest + "</span>" : "") + "</p>" +
+      "</div><nav class=\"ed-nav\" aria-label=\"Pages de la liste\">" +
+      "<a class=\"nav-link is-active\" href=\"#ma-liste\" aria-current=\"page\">Modifier</a>" +
+      "<a class=\"nav-link\" href=\"#partage\">Vue famille</a>" +
+      "<button type=\"button\" class=\"nav-link nav-btn\" data-action=\"logout\">Se déconnecter</button>" +
+      "</nav></header>" +
+      "<div class=\"ed-grid\">" +
+
+      "<section class=\"panel form-panel\" aria-labelledby=\"form-heading\">" +
+      "<h2 id=\"form-heading\">Ajouter une idée</h2>" +
+      "<form id=\"item-form\" novalidate>" +
+      "<div class=\"field\"><label for=\"f-title\">Idée cadeau <span class=\"req\">obligatoire</span></label>" +
+      "<input type=\"text\" id=\"f-title\" maxlength=\"120\" autocomplete=\"off\" placeholder=\"Ex. Un pull en laine vert sapin\"></div>" +
+      "<div class=\"field\"><label for=\"f-link\">Lien vers le cadeau</label>" +
+      "<input type=\"text\" id=\"f-link\" inputmode=\"url\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Colle l’adresse de la page du produit\"></div>" +
+      "<div class=\"field\"><label for=\"f-alt\">Autre choix possible <span class=\"req\">facultatif</span></label>" +
+      "<input type=\"text\" id=\"f-alt\" inputmode=\"url\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Le lien d’un autre modèle qui te plairait aussi\"></div>" +
+      "<div class=\"field\"><label for=\"f-price\">Prix approximatif</label>" +
+      "<div class=\"input-suffix\"><input type=\"text\" id=\"f-price\" inputmode=\"decimal\" autocomplete=\"off\" placeholder=\"35\"><span aria-hidden=\"true\">€</span></div></div>" +
+      "<fieldset class=\"field\"><legend>À quel point tu en as envie ?</legend><div class=\"seg\">" +
+      "<input type=\"radio\" name=\"priority\" id=\"f-p1\" value=\"1\"><label for=\"f-p1\"><span class=\"stars\" aria-hidden=\"true\">★★★</span>Très envie</label>" +
+      "<input type=\"radio\" name=\"priority\" id=\"f-p2\" value=\"2\" checked><label for=\"f-p2\"><span class=\"stars\" aria-hidden=\"true\">★★</span>Envie</label>" +
+      "<input type=\"radio\" name=\"priority\" id=\"f-p3\" value=\"3\"><label for=\"f-p3\"><span class=\"stars\" aria-hidden=\"true\">★</span>Petite idée</label>" +
+      "</div></fieldset>" +
+      "<div class=\"field\"><label for=\"f-note\">Précisions <span class=\"req\">facultatif</span></label>" +
+      "<textarea id=\"f-note\" maxlength=\"300\" rows=\"3\" placeholder=\"Taille, couleur, modèle, magasin…\"></textarea></div>" +
+      "<p class=\"form-error\" id=\"form-error\" role=\"alert\"></p>" +
+      "<div class=\"form-actions\"><button type=\"submit\" class=\"btn btn-berry\" id=\"f-submit\">Ajouter à ma liste</button>" +
+      "<button type=\"button\" class=\"btn btn-quiet\" id=\"f-cancel\" data-action=\"cancel-edit\" hidden>Annuler</button></div>" +
+      "</form></section>" +
+
+      "<section class=\"panel list-panel\" aria-labelledby=\"list-heading\">" +
+      "<div class=\"list-head\"><h2 id=\"list-heading\">Mes idées</h2><p class=\"list-count\" id=\"list-count\"></p></div>" +
+      "<ul class=\"ed-list\" id=\"ed-list\"></ul>" +
+      "</section>" +
+
+      "<section class=\"panel share-panel\" aria-labelledby=\"share-heading\">" +
+      "<h2 id=\"share-heading\">Partager avec ma famille</h2>" +
+      "<form id=\"settings-form\" novalidate>" +
+      "<div class=\"field\"><label for=\"s-owner\">Ton prénom</label>" +
+      "<input type=\"text\" id=\"s-owner\" maxlength=\"40\" autocomplete=\"given-name\" placeholder=\"Affiché en titre de la page famille\" value=\"" + esc(state.owner) + "\"></div>" +
+      "<div class=\"field\"><label for=\"s-message\">Un petit mot pour eux <span class=\"req\">facultatif</span></label>" +
+      "<textarea id=\"s-message\" maxlength=\"280\" rows=\"2\" placeholder=\"Ex. Merci d’avance, j’ai été très sage cette année !\">" + esc(state.message) + "</textarea></div>" +
+      "<button type=\"submit\" class=\"btn btn-outline btn-small\">Enregistrer le prénom et le mot</button>" +
+      "</form>" +
+      "<div class=\"divider\"></div>" +
+      "<div class=\"field\"><label for=\"share-url\">Lien à envoyer à ta famille</label>" +
+      "<div class=\"copy-row\"><input type=\"text\" id=\"share-url\" readonly value=\"" + esc(url) + "\">" +
+      "<button type=\"button\" class=\"btn btn-berry btn-small\" data-action=\"copy\">Copier</button></div></div>" +
+      "<ol class=\"steps\">" +
+      "<li>Envoie ce lien à ta famille. Ils verront ta liste sans pouvoir la modifier.</li>" +
+      "<li>Pour revenir modifier ta liste, ouvre ce même lien suivi de <strong>#ma-liste</strong>.</li>" +
+      "</ol>" +
+      "</section>" +
+
+      "</div></div>";
+  }
+
+  function rowHtml(it) {
+    var p = PRIORITIES[it.priority];
+    var meta = [];
+    if (it.price != null) meta.push("<span>≈ " + fmtPrice(it.price) + "</span>");
+    if (it.link) meta.push("<a href=\"" + esc(it.link) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + esc(hostOf(it.link)) + " ↗</a>");
+    if (it.alt) meta.push("<a href=\"" + esc(it.alt) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Autre choix : " + esc(hostOf(it.alt)) + " ↗</a>");
+    if (!it.link && !it.alt) meta.push("<span class=\"nolink\">Pas de lien</span>");
+    var confirmBox = confirmDeleteId === it.id
+      ? "<div class=\"row-confirm\" role=\"group\" aria-label=\"Confirmer la suppression\"><span>Supprimer « " + esc(it.title) + " » ?</span>" +
+        "<button type=\"button\" class=\"btn btn-small btn-berry\" data-action=\"delete\" data-id=\"" + esc(it.id) + "\">Oui, supprimer</button>" +
+        "<button type=\"button\" class=\"btn btn-small btn-quiet\" data-action=\"cancel-delete\">Non, garder</button></div>"
+      : "";
+    return "<li class=\"row " + p.cls + (editingId === it.id ? " is-editing" : "") + "\">" +
+      "<div class=\"row-main\">" +
+      "<p class=\"row-prio\"><span class=\"stars\" aria-hidden=\"true\">" + p.stars + "</span>" + p.label + "</p>" +
+      "<h3 class=\"row-title\">" + esc(it.title) + "</h3>" +
+      (it.note ? "<p class=\"row-note\">" + esc(it.note) + "</p>" : "") +
+      "<p class=\"row-meta\">" + meta.join("") + "</p>" +
+      "</div>" +
+      "<div class=\"row-actions\">" +
+      "<button type=\"button\" class=\"btn btn-small btn-line\" data-action=\"edit\" data-id=\"" + esc(it.id) + "\">Modifier</button>" +
+      "<button type=\"button\" class=\"btn btn-small btn-line btn-danger\" data-action=\"ask-delete\" data-id=\"" + esc(it.id) + "\">Supprimer</button>" +
+      "</div>" + confirmBox + "</li>";
+  }
+
+  function renderList() {
+    var ul = $("#ed-list");
+    if (!ul) return;
+    if (loadError) {
+      $("#list-count").textContent = "";
+      ul.innerHTML = "<li class=\"empty\">La liste n’a pas pu être chargée depuis le serveur. Recharge la page avant de faire des modifications.</li>";
+      return;
+    }
+    var items = sortedItems();
+    var top = items.filter(function (i) { return i.priority === 1; }).length;
+    $("#list-count").textContent = countLabel(items.length) + (top ? " · " + top + " très envie" : "");
+    ul.innerHTML = items.length
+      ? items.map(rowHtml).join("")
+      : "<li class=\"empty\">Ta liste est vide pour l’instant. Ajoute ta première idée avec le formulaire : le titre suffit, le lien et le prix sont facultatifs.</li>";
+    if (busy) setBusy(true);
+  }
+
+  function fillForm(it) {
+    $("#f-title").value = it ? it.title : "";
+    $("#f-link").value = it ? it.link : "";
+    $("#f-alt").value = it ? it.alt : "";
+    $("#f-price").value = it && it.price != null ? String(it.price).replace(".", ",") : "";
+    $("#f-note").value = it ? it.note : "";
+    $("#f-p" + (it ? it.priority : 2)).checked = true;
+    $("#form-heading").textContent = it ? "Modifier l’idée" : "Ajouter une idée";
+    $("#f-submit").textContent = it ? "Enregistrer les modifications" : "Ajouter à ma liste";
+    $("#f-cancel").hidden = !it;
+    $("#form-error").textContent = "";
+    $(".form-panel").classList.toggle("is-editing", !!it);
+  }
+
+  function captureDraft() {
+    if (!$("#item-form")) return null;
+    var pr = document.querySelector("input[name=\"priority\"]:checked");
+    return {
+      title: $("#f-title").value, link: $("#f-link").value, alt: $("#f-alt").value, price: $("#f-price").value, note: $("#f-note").value,
+      priority: pr ? pr.value : "2", owner: $("#s-owner").value, message: $("#s-message").value
+    };
+  }
+  function restoreDraft(d) {
+    $("#f-title").value = d.title; $("#f-link").value = d.link; $("#f-alt").value = d.alt; $("#f-price").value = d.price; $("#f-note").value = d.note;
+    var r = $("#f-p" + d.priority); if (r) r.checked = true;
+    $("#s-owner").value = d.owner; $("#s-message").value = d.message;
+  }
+
+  function onItemSubmit(e) {
+    e.preventDefault();
+    var err = $("#form-error");
+    var title = $("#f-title").value.trim();
+    var linkRaw = $("#f-link").value.trim();
+    var altRaw = $("#f-alt").value.trim();
+    var priceRes = parsePrice($("#f-price").value);
+    var note = $("#f-note").value.trim().slice(0, 300);
+    var pr = document.querySelector("input[name=\"priority\"]:checked");
+    var priority = pr ? Number(pr.value) : 2;
+    if (!title) { err.textContent = "Écris ton idée de cadeau avant d’enregistrer."; $("#f-title").focus(); return; }
+    var link = "", alt = "";
+    if (linkRaw) {
+      link = safeUrl(linkRaw);
+      if (!link) { err.textContent = "Ce lien ne semble pas valide. Colle l’adresse complète, par exemple https://www.exemple.fr/produit."; $("#f-link").focus(); return; }
+    }
+    if (altRaw) {
+      alt = safeUrl(altRaw);
+      if (!alt) { err.textContent = "Le lien « Autre choix possible » ne semble pas valide. Colle l’adresse complète de la page."; $("#f-alt").focus(); return; }
+    }
+    if (!priceRes.ok) { err.textContent = "Le prix doit être un nombre, par exemple 35 ou 19,90."; $("#f-price").focus(); return; }
+    err.textContent = "";
+    var next = clone(state);
+    var fields = { title: title.slice(0, 120), link: link, alt: alt, price: priceRes.value, priority: priority, note: note };
+    var wasEditing = !!editingId;
+    if (wasEditing) {
+      var target = null;
+      for (var i = 0; i < next.items.length; i++) if (next.items[i].id === editingId) target = next.items[i];
+      if (!target) { editingId = null; fillForm(null); renderList(); toast("Cette idée n’existe plus.", "error"); return; }
+      Object.assign(target, fields);
+    } else {
+      fields.id = uid(); fields.createdAt = Date.now();
+      next.items.push(fields);
+    }
+    save(next, wasEditing ? "Idée modifiée" : "Idée ajoutée à ta liste");
+  }
+
+  function onSettingsSubmit(e) {
+    e.preventDefault();
+    var next = clone(state);
+    next.owner = $("#s-owner").value.trim().slice(0, 40);
+    next.message = $("#s-message").value.trim().slice(0, 280);
+    save(next, "Prénom et petit mot enregistrés");
+  }
+
+  function startEdit(id) {
+    var it = findItem(id);
+    if (!it) return;
+    editingId = id; confirmDeleteId = null;
+    fillForm(it);
+    renderList();
+    var panel = $(".form-panel");
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    $("#f-title").focus({ preventScroll: true });
+  }
+
+  function copyLink() {
+    var url = shareUrl();
+    var input = $("#share-url");
+    var fallback = function () {
+      if (input) { input.focus(); input.select(); }
+      toast("Copie impossible ici : le lien est sélectionné, copie-le avec Ctrl+C ou un appui long.", "error");
+    };
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) { fallback(); return; }
+      navigator.clipboard.writeText(url).then(function () { toast("Lien copié. Colle-le dans un message à ta famille."); }, fallback);
+    } catch (e) { fallback(); }
+  }
+
+  function onClick(e) {
+    var b = e.target.closest ? e.target.closest("[data-action]") : null;
+    if (!b || busy) return;
+    var a = b.getAttribute("data-action"), id = b.getAttribute("data-id");
+    if (a === "edit") startEdit(id);
+    else if (a === "cancel-edit") { editingId = null; fillForm(null); renderList(); }
+    else if (a === "ask-delete") {
+      confirmDeleteId = id; renderList();
+      var y = document.querySelector("[data-action=\"delete\"]"); if (y) y.focus();
+    }
+    else if (a === "cancel-delete") { confirmDeleteId = null; renderList(); }
+    else if (a === "delete") {
+      var next = clone(state);
+      next.items = next.items.filter(function (i) { return i.id !== id; });
+      if (editingId === id) editingId = null;
+      save(next, "Idée supprimée");
+    }
+    else if (a === "copy") copyLink();
+    else if (a === "logout") logout();
+  }
+
+  function currentView() {
+    var h = (location.hash || "").replace(/^#/, "");
+    if (h === "partage") return "share";
+    if (mode === "editor") return "edit";
+    if (h === "ma-liste" && mode === "viewer") return "login";
+    return "share";
+  }
+
+  function render(keepDraft) {
+    var v = currentView();
+    var app = $("#app");
+    if (v === "edit") {
+      var draft = keepDraft && lastView === "edit" ? captureDraft() : null;
+      app.innerHTML = editorHtml();
+      $("#item-form").addEventListener("submit", onItemSubmit);
+      $("#settings-form").addEventListener("submit", onSettingsSubmit);
+      fillForm(editingId ? findItem(editingId) : null);
+      if (draft) restoreDraft(draft);
+      renderList();
+    } else if (v === "login") {
+      app.innerHTML = loginHtml();
+      $("#login-form").addEventListener("submit", onLogin);
+    } else {
+      app.innerHTML = shareHtml(renders > 0 && lastView === "share" && loaded);
+    }
+    if (lastView !== null && v !== lastView) window.scrollTo(0, 0);
+    lastView = v;
+    renders++;
+  }
+
+  /* ---------- Neige ---------- */
+  function startSnow() {
+    var c = document.getElementById("snow");
+    if (!c || !c.getContext) return;
+    var ctx = c.getContext("2d");
+    var w = 0, h = 0, flakes = [];
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    function mk(anywhere) {
+      return { x: Math.random() * w, y: anywhere ? Math.random() * h : -6, r: .6 + Math.random() * 1.9, s: .25 + Math.random() * .6, d: Math.random() * 6.28, a: .25 + Math.random() * .45 };
+    }
+    function resize() {
+      w = c.clientWidth; h = c.clientHeight;
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = Math.round(Math.min(110, (w * h) / 14000));
+      flakes = [];
+      for (var i = 0; i < n; i++) flakes.push(mk(true));
+      if (reduceMotion) draw();
+    }
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        ctx.globalAlpha = f.a;
+        ctx.fillStyle = "#f3f0e9";
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.2832); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    function step() {
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        f.y += f.s; f.d += .012; f.x += Math.sin(f.d) * .3;
+        if (f.y > h + 6) flakes[i] = mk(false);
+      }
+      draw();
+      requestAnimationFrame(step);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    if (!reduceMotion) requestAnimationFrame(step);
+  }
+
+  /* ---------- Démarrage ---------- */
+  render(true);
+  startSnow();
+  $("#app").addEventListener("click", onClick);
+  window.addEventListener("hashchange", function () { render(true); });
+
+  var check = password
+    ? api({ password: password, check: true }).then(function () { mode = "editor"; }, function (e) {
+        mode = "viewer";
+        if (e && (e.code === "mot_de_passe" || e.code === "mot_de_passe_par_defaut")) { password = ""; storePass(""); }
+      })
+    : Promise.resolve();
+  Promise.all([load(), check]).then(function () { render(true); });
+})();
+</script>
+</body>
+</html>
